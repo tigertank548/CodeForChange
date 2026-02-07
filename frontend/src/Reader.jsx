@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useConversation } from '@elevenlabs/react';
+import { ElevenLabsClient, ElevenLabsEnvironment } from '@elevenlabs/elevenlabs-js';
 
 function Reader() {
-    const [userInput, setUserInput] = useState('');
     const [messages, setMessages] = useState([]);
 
     const conversation = useConversation({
@@ -22,7 +22,7 @@ function Reader() {
     const startConversation = async () => {
         try {
             await conversation.startSession({
-                agentId: 'agent_9101kgx2fmzve6xakrnv9dnmza43', // Replace with actual agent ID
+                agentId: 'agent-key',
             });
         } catch (error) {
             console.error('Failed to start:', error);
@@ -33,17 +33,42 @@ function Reader() {
         conversation.endSession();
     };
 
-    const handleFileUpload = (event) => {
+    const handleFileUpload = async (event) => {
         const file = event.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const content = e.target.result;
-                const message = `Add this to knowledge base: ${content}`;
-                conversation.sendUserMessage(message);
-                setMessages(prev => [...prev, { type: 'user', text: `Uploaded file (${file.name}) to knowledge base` }]);
-            };
-            reader.readAsText(file);
+        if (!file) return;
+        // Only allow text-based files
+        const textTypes = [
+            'text/plain',
+            'application/json',
+            'application/xml',
+            'text/csv',
+            'text/html',
+            'application/javascript',
+            'application/x-javascript',
+            'application/x-www-form-urlencoded',
+            'application/x-yaml',
+            'text/markdown',
+            'text/xml',
+            'text/css',
+        ];
+        if (!textTypes.includes(file.type)) {
+            setMessages(prev => [...prev, { type: 'system', text: 'Only text-based files can be uploaded to the knowledge base.' }]);
+            return;
+        }
+        try {
+            const content = await file.text();
+            const client = new ElevenLabsClient({
+                apiKey: 'api-key',
+                environment: ElevenLabsEnvironment.Production,
+            });
+            await client.conversationalAi.knowledgeBase.documents.createFromText({
+                text: content,
+                name: file.name,
+            });
+            setMessages(prev => [...prev, { type: 'system', text: `File "${file.name}" added to knowledge base.` }]);
+        } catch (error) {
+            console.error('Error uploading file:', error);
+            setMessages(prev => [...prev, { type: 'system', text: 'Failed to add file to knowledge base.' }]);
         }
     };
 
@@ -58,7 +83,7 @@ function Reader() {
             <p>Status: {conversation.status}</p>
             <div>
                 <input type="file" onChange={handleFileUpload} />
-                <p>Upload a file to add to the agent's knowledge base</p>
+                <p>Upload a text-based file to add it to the agent's knowledge base.</p>
             </div>
             <div>
                 {messages.map((msg, index) => (
