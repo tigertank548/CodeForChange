@@ -8,7 +8,7 @@ import gatorLogo from './assets/gatorreads-logo.png';
 import ParentZone from './ParentZone';
 import DefinitionModal from './DefinitionModal';
 
-const SAMPLE_SENTENCE = "Hey Parent! Upload a text-based file to the settings in the upper right hand corner!";
+const SAMPLE_SENTENCE = "Hey Parent! Upload a text-based file to the settings in the upper right hand corner or ask to read something specific!";
 
 
 function Reader() {
