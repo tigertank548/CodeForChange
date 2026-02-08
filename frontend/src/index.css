@@ -1,16 +1,31 @@
-/* 1. Initialize Tailwind CSS v4 */
-@import "tailwindcss";
-
-/* 2. Import the kid-friendly font (Comic Neue) from Google */
 @import url('https://fonts.googleapis.com/css2?family=Comic+Neue:wght@400;700&display=swap');
 
-/* 3. Define your custom variables directly in CSS */
-@theme {
-  /* This creates the 'font-comic' utility class used in your component */
-  --font-comic: 'Comic Neue', cursive, sans-serif;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom Scrollbar Styles */
+::-webkit-scrollbar {
+  width: 8px;
 }
 
-/* 4. Basic Layout Reset to ensure full height */
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 8px;
+  margin-top: 18px;
+  margin-bottom: 18px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Basic Layout Reset to ensure full height */
 html,
 body,
 #root {

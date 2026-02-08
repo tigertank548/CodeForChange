@@ -4,7 +4,7 @@ import { ElevenLabsClient, ElevenLabsEnvironment } from '@elevenlabs/elevenlabs-
 import { Mic, Volume2, HelpCircle, Play, Square, Settings, Upload, X } from 'lucide-react';
 
 // --- MOCK DATA FOR THE READING TEXT ---
-const SAMPLE_SENTENCE = "The giant panda sat quietly eating bamboo.";
+const SAMPLE_SENTENCE = "Hey Parrent! Upload a text-based file to the settings in the upper right hand corner!";
 const SAMPLE_WORDS = SAMPLE_SENTENCE.split(" ");
 
 function Reader() {
@@ -18,6 +18,9 @@ function Reader() {
     const [selectedFile, setSelectedFile] = useState(null);
     const [uploadStatus, setUploadStatus] = useState('');
     const [messages, setMessages] = useState([]); // From teammate's code
+    const [currentText, setCurrentText] = useState(SAMPLE_SENTENCE);
+
+    const currentWords = currentText.split(" ");
 
     // --- 1. ELEVENLABS HOOK ---
     const conversation = useConversation({
@@ -41,9 +44,8 @@ function Reader() {
             await conversation.endSession();
         } else {
             try {
-                // MERGED: Using the structure from teammate's code
                 await conversation.startSession({
-                    agentId: 'agent_2101kgwx6m4gec98ab47h9zy55zq', // <--- REPLACE WITH YOUR REAL AGENT ID
+                    agentId: 'agent_0001kgx6svdneret8meb62y6ksbj',
                 });
             } catch (error) {
                 console.error('Failed to start:', error);
@@ -51,7 +53,6 @@ function Reader() {
         }
     };
 
-    // --- 3. MERGED FILE UPLOAD LOGIC ---
     const handleFileChange = (event) => {
         const file = event.target.files[0];
         setSelectedFile(file);
@@ -80,11 +81,10 @@ function Reader() {
         setUploadStatus('Uploading...');
 
         try {
-            // MERGED: Logic from teammate's handleFileUpload
             const content = await selectedFile.text();
 
             const client = new ElevenLabsClient({
-                apiKey: 'sk_b5e0a3cd49b27cf1fb1f99943895fe2cf6cc3e0bb30cac24', // <--- REPLACE WITH YOUR REAL API KEY
+                apiKey: 'e5b22b9f4c5f7727704a4092741f7d223f7f5b1cc49d9a24146d46d736f2c1ac',
                 environment: ElevenLabsEnvironment.Production,
             });
 
@@ -93,6 +93,8 @@ function Reader() {
                 name: selectedFile.name,
             });
 
+            setCurrentText(content);
+            setCurrentWordIndex(0);
             setUploadStatus(`Success! "${selectedFile.name}" added to knowledge base.`);
             setSelectedFile(null);
         } catch (error) {
@@ -113,12 +115,12 @@ function Reader() {
     }, [isConnected]);
 
     return (
-        <div className="flex flex-col h-screen bg-blue-50 p-6 font-sans relative overflow-hidden">
+        <div className="flex flex-col min-h-screen bg-blue-50 p-4 md:p-6 lg:p-8 font-sans relative">
 
             {/* --- PARENT SETTINGS MODAL --- */}
             {showSettings && (
                 <div className="absolute inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-                    <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl border-4 border-blue-100">
+                    <div className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl border-4 border-blue-100">
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-2xl font-bold text-gray-800">Parent Zone 🔒</h2>
                             <button onClick={() => setShowSettings(false)} className="p-2 hover:bg-gray-100 rounded-full cursor-pointer">
@@ -157,7 +159,7 @@ function Reader() {
             )}
 
             {/* --- HEADER --- */}
-            <header className="flex justify-between items-center mb-8">
+            <header className="flex justify-between items-center mb-4 md:mb-6 lg:mb-8">
                 <div className="flex items-center gap-4 flex-1">
                     <span className="text-2xl font-bold text-yellow-500 hidden md:block">⭐ Star Power:</span>
                     <div className="h-6 w-full max-w-md bg-gray-200 rounded-full overflow-hidden border-2 border-gray-300">
@@ -178,11 +180,11 @@ function Reader() {
             </header>
 
             {/* --- MAIN CONTENT --- */}
-            <main className="flex-1 flex flex-col items-center justify-center gap-8 max-w-4xl mx-auto w-full">
+            <main className="flex-1 flex flex-col items-center justify-center gap-4 md:gap-6 lg:gap-8 max-w-4xl mx-auto w-full">
                 {/* Avatar */}
                 <div className="relative">
                     <AvatarDisplay isSpeaking={isSpeaking} isConnected={isConnected} />
-                    <div className="absolute -right-24 top-0 bg-white px-4 py-2 rounded-xl shadow-lg border border-blue-100 hidden md:block">
+                    <div className="absolute -right-12 md:-right-16 lg:-right-20 top-0 bg-white px-4 py-2 rounded-xl shadow-lg border border-blue-100 hidden md:block">
                         <p className="text-sm font-bold text-blue-600">
                             {isConnected ? (isSpeaking ? "My turn!" : "I'm listening...") : "Ready?"}
                         </p>
@@ -190,9 +192,9 @@ function Reader() {
                 </div>
 
                 {/* Text Pane */}
-                <div className="bg-white p-6 md:p-8 rounded-3xl shadow-xl border-4 border-blue-200 w-full text-center min-h-[200px] flex items-center justify-center">
-                    <div className="flex flex-wrap justify-center gap-3 text-3xl md:text-5xl font-bold leading-relaxed text-gray-700 font-comic">
-                        {SAMPLE_WORDS.map((word, index) => (
+                <div className="bg-white p-4 md:p-6 lg:p-8 rounded-3xl shadow-xl border-4 border-blue-200 w-full text-center min-h-[200px] max-h-[300px] md:max-h-[400px] lg:max-h-[500px] overflow-y-auto flex justify-center pt-4 md:pt-6 lg:pt-8">
+                    <div className="flex flex-wrap justify-center gap-3 text-2xl md:text-4xl lg:text-5xl font-bold leading-relaxed text-gray-700 font-comic pr-4">
+                        {currentWords.map((word, index) => (
                             <span
                                 key={index}
                                 className={`px-2 py-1 rounded-lg transition-colors duration-300 ${index === currentWordIndex ? 'bg-yellow-200 text-black scale-105 transform' :
@@ -208,7 +210,7 @@ function Reader() {
                 {/* Visualizer */}
                 <div className="h-12 flex items-end justify-center gap-1">
                     {isConnected ? [...Array(10)].map((_, i) => (
-                        <div key={i} className="w-2 md:w-3 bg-green-400 rounded-full transition-all duration-75"
+                        <div key={i} className="w-1 md:w-2 lg:w-3 bg-green-400 rounded-full transition-all duration-75"
                             style={{ height: `${Math.max(15, Math.random() * micVolume)}%`, opacity: 0.8 }} />
                     )) : (
                         <div className="text-gray-300 font-bold tracking-widest text-sm">MIC OFF</div>
