@@ -13,6 +13,7 @@ const SAMPLE_SENTENCE = "Hey Parent! Upload a text-based file to the settings in
 
 function Reader() {
     // --- STATE MANAGEMENT ---
+    const [currentWordIndex, setCurrentWordIndex] = useState(0);
     const [micVolume, setMicVolume] = useState(0);
     const [sourceType, setSourceType] = useState('manual');
     const [isRequestingNext, setIsRequestingNext] = useState(false); // New: Prevents double-firing
@@ -81,7 +82,7 @@ function Reader() {
                 setTimeout(() => { toolWasUsedRef.current = false; }, 2000);
             }
             else if (message.type === 'user_transcript') {
-               // REAL-TIME KARAOKE LOGIC
+                // REAL-TIME KARAOKE LOGIC
                 // 1. Get the current target word we are looking for
                 let currentIndex = wordIndexRef.current;
 
@@ -242,6 +243,13 @@ function Reader() {
                             const words = para.split(/\s+/);
                             const paraContent = words.map((word, i) => {
                                 const globalIndex = wordIndex + i;
+                                // 1. Define the color logic cleanly here, BEFORE the HTML
+                                let colorClass = "text-gray-700"; // Default (Words not read yet)
+                                if (globalIndex < currentWordIndex) {
+                                    colorClass = "text-gray-400"; // Past words (Gray)
+                                } else if (globalIndex === currentWordIndex) {
+                                    colorClass = "bg-yellow-200 text-black underline scale-110 shadow-md"; // Current word (Highlight)
+                                }
                                 return (
                                     <span
                                         key={globalIndex}
