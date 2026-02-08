@@ -4,7 +4,7 @@ import { ElevenLabsClient, ElevenLabsEnvironment } from '@elevenlabs/elevenlabs-
 import { Mic, Volume2, HelpCircle, Play, Square, Settings, Upload, X } from 'lucide-react';
 
 // --- MOCK DATA FOR THE READING TEXT ---
-const SAMPLE_SENTENCE = "Hey Parrent! Upload a text-based file to the settings in the upper right hand corner!";
+const SAMPLE_SENTENCE = "Hey Parent! Upload a text-based file to the settings in the upper right hand corner!";
 const SAMPLE_WORDS = SAMPLE_SENTENCE.split(" ");
 
 function Reader() {
