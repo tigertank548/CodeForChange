@@ -3,10 +3,8 @@ import { useConversation } from '@elevenlabs/react';
 import { ElevenLabsClient, ElevenLabsEnvironment } from '@elevenlabs/elevenlabs-js';
 import { Mic, HelpCircle, Play, Square, Settings, Upload, X, Globe, BookOpen, Sparkles } from 'lucide-react';
 import { ELEVENLABS_API_KEY, AGENT_ID } from './config';
-import ParentZone from './ParentZone';
 
 const SAMPLE_SENTENCE = "Hey Parent! Upload a text-based file to the settings in the upper right hand corner!";
-
 
 function Reader() {
     // --- STATE MANAGEMENT ---
@@ -14,7 +12,7 @@ function Reader() {
     const [micVolume, setMicVolume] = useState(0);
     const [progress, setProgress] = useState(0);
     const [sourceType, setSourceType] = useState('manual');
-    const [isRequestingNext, setIsRequestingNext] = useState(false); // New: Prevents double-firing
+    const [isRequestingNext, setIsRequestingNext] = useState(false);
 
     const [showSettings, setShowSettings] = useState(false);
     const [selectedFile, setSelectedFile] = useState(null);
@@ -24,11 +22,20 @@ function Reader() {
 
     // Derived state
     const paragraphs = currentText.split('\n').map(p => p.trim()).filter(p => p);
-    const allWordsRaw = paragraphs.flatMap(p => p.split());
+    const allWordsRaw = paragraphs.flatMap(p => p.split(/\s+/));
     const totalWordCount = allWordsRaw.length;
 
-    // Track tool usage
+    // Track tool usage & transcripts
     const toolWasUsedRef = useRef(false);
+
+    // NEW: We need a ref to track the word index so the callback always has the latest value
+    const wordIndexRef = useRef(0);
+
+    // Sync state to ref
+    useEffect(() => {
+        wordIndexRef.current = currentWordIndex;
+    }, [currentWordIndex]);
+
 
     // --- 1. ELEVENLABS HOOK ---
     const conversation = useConversation({
@@ -47,12 +54,11 @@ function Reader() {
                     return "Placeholder ignored.";
                 }
 
-                // New text arrived! Reset everything.
                 setCurrentText(newText);
                 setCurrentWordIndex(0);
                 setProgress(0);
                 setSourceType('agent');
-                setIsRequestingNext(false); // Reset auto-advance lock
+                setIsRequestingNext(false);
                 toolWasUsedRef.current = true;
                 return "Screen updated successfully.";
             }
@@ -63,62 +69,46 @@ function Reader() {
             if (message.type === 'agent_response') {
                 setMessages(prev => [...prev, { type: 'agent', text: message.message }]);
 
-                // Fallback Logic
-                if (!toolWasUsedRef.current) {
-                    // Only fallback if message is substantial
-                    if (message.message.length > 10) {
-                        console.log("⚠️ Fallback: Using audio text");
-                        setCurrentText(message.message);
-                        setCurrentWordIndex(0);
-                        setProgress(0);
-                        setSourceType('agent');
-                        setIsRequestingNext(false); // Reset auto-advance lock
-                    }
+                if (!toolWasUsedRef.current && message.message.length > 10) {
+                    console.log("⚠️ Fallback: Using audio text");
+                    setCurrentText(message.message);
+                    setCurrentWordIndex(0);
+                    setProgress(0);
+                    setSourceType('agent');
+                    setIsRequestingNext(false);
                 }
                 setTimeout(() => { toolWasUsedRef.current = false; }, 2000);
             }
 
             else if (message.type === 'user_transcript') {
-                setMessages(prev => [...prev, { type: 'user', text: message.message }]);
-                toolWasUsedRef.current = false;
+                // REAL-TIME KARAOKE LOGIC
+                // The transcript comes in as a growing string or chunks. 
+                // We check the latest words against our current position.
 
-                // Karaoke Logic
-                setCurrentText(currentTextState => {
-                    const currentParagraphs = currentTextState.split('\n').map(p => p.trim()).filter(p => p);
-                    const currentAllWords = currentParagraphs.flatMap(p => p.split(/\s+/));
+                // 1. Get the current target word we are looking for
+                // We use the Ref here to get the absolute latest index without waiting for re-renders
+                let currentIndex = wordIndexRef.current;
 
-                    const cleanTargetWords = currentAllWords.map(w =>
-                        w.toLowerCase().replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, "")
-                    );
+                // Safety check
+                if (currentIndex >= allWordsRaw.length) return;
 
-                    const spokenWords = message.message.toLowerCase()
-                        .replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, "")
-                        .split(/\s+/);
+                const targetWordClean = allWordsRaw[currentIndex].toLowerCase().replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, "");
 
-                    setCurrentWordIndex(prevIndex => {
-                        let matchCount = 0;
-                        let tempIndex = prevIndex;
+                // 2. Clean the incoming transcript chunk
+                const spokenChunk = message.message.toLowerCase();
 
-                        spokenWords.forEach(spokenWord => {
-                            if (tempIndex < cleanTargetWords.length) {
-                                const target = cleanTargetWords[tempIndex];
-                                if (spokenWord.includes(target) || target.includes(spokenWord)) {
-                                    matchCount++;
-                                    tempIndex++;
-                                }
-                            }
-                        });
+                // 3. Check if the target word is inside this latest chunk
+                if (spokenChunk.includes(targetWordClean)) {
+                    console.log(`🎤 Matched word: ${targetWordClean}`);
 
-                        if (matchCount > 0) {
-                            const newIndex = Math.min(prevIndex + matchCount, currentAllWords.length);
-                            const newProgress = Math.min(100, (newIndex / currentAllWords.length) * 100);
-                            setProgress(newProgress);
-                            return newIndex;
-                        }
-                        return prevIndex;
-                    });
-                    return currentTextState;
-                });
+                    // Move to next word!
+                    const newIndex = currentIndex + 1;
+                    setCurrentWordIndex(newIndex);
+
+                    // Update progress
+                    const newProgress = Math.min(100, (newIndex / allWordsRaw.length) * 100);
+                    setProgress(newProgress);
+                }
             }
         },
         onError: (error) => console.error('Error:', error),
@@ -127,25 +117,16 @@ function Reader() {
     const isConnected = conversation.status === 'connected';
     const isSpeaking = conversation.isSpeaking;
 
-    // --- AUTO-ADVANCE LOGIC (NEW!) ---
+    // --- AUTO-ADVANCE LOGIC ---
     useEffect(() => {
-        // If we are connected, have text, and reached the end...
         if (isConnected && totalWordCount > 0 && currentWordIndex >= totalWordCount) {
-
-            // And we haven't already asked...
             if (!isRequestingNext && !isSpeaking) {
                 console.log("🚀 Auto-advancing: User finished reading!");
-                setIsRequestingNext(true); // Lock it so we don't ask twice
+                setIsRequestingNext(true);
 
-                // Wait 1.5s for dramatic effect (and to let the child finish speaking)
                 setTimeout(() => {
-                    // Send silent message to Agent
-                    // Check if sendUserMessage is available (it should be)
                     if (conversation.sendUserMessage) {
                         conversation.sendUserMessage("I finished reading that part. Please show me the next sentence.");
-                    } else {
-                        // Fallback for older SDK versions
-                        console.warn("sendUserMessage not found on conversation object");
                     }
                 }, 1500);
             }
@@ -159,7 +140,7 @@ function Reader() {
             await conversation.endSession();
         } else {
             try {
-                await conversation.startSession({ agentId: AGENT_ID });
+                await conversation.startSession({ agentId: import.meta.env.VITE_AGENT_ID, });
             } catch (error) {
                 console.error('Failed to start:', error);
             }
@@ -172,48 +153,23 @@ function Reader() {
     };
 
     const handleUpload = async () => {
-        let content, name;
-        if (textInput.trim()) {
-            content = textInput;
-            name = 'Pasted Text';
-        } else if (selectedFile) {
-            content = await selectedFile.text();
-            name = selectedFile.name;
-        } else {
-            setUploadStatus('Please provide text or select a file.');
-            return;
-        }
-
-        // Validation for file types if file is selected
-        if (selectedFile) {
-            const textTypes = [
-                'text/plain', 'application/json', 'application/xml', 'text/csv',
-                'text/html', 'application/javascript', 'application/x-javascript',
-                'application/x-www-form-urlencoded', 'application/x-yaml',
-                'text/markdown', 'text/xml', 'text/css',
-            ];
-            if (!textTypes.includes(selectedFile.type)) {
-                setUploadStatus('Error: Only text-based files allowed.');
-                return;
-            }
-        }
-
+        if (!selectedFile) return;
         setUploadStatus('Uploading...');
         try {
             const content = await selectedFile.text();
             const client = new ElevenLabsClient({
-                apiKey: ELEVENLABS_API_KEY,
+                apiKey: import.meta.env.VITE_ELEVENLABS_API_KEY,
                 environment: ElevenLabsEnvironment.Production,
             });
             await client.conversationalAi.knowledgeBase.documents.createFromText({
                 text: content,
-                name: name,
+                name: selectedFile.name,
             });
             setCurrentText(content);
             setCurrentWordIndex(0);
-            setUploadStatus(`Success! "${name}" added to knowledge base.`);
+            setSourceType('manual');
+            setUploadStatus('Success!');
             setSelectedFile(null);
-            setTextInput('');
         } catch (error) {
             console.error(error);
             setUploadStatus('Failed.');
@@ -231,18 +187,6 @@ function Reader() {
     return (
         <div className="flex flex-col min-h-screen bg-blue-50 p-4 md:p-6 lg:p-8 font-sans relative">
 
-            {/* --- PARENT SETTINGS MODAL --- */}
-            <ParentZone
-                showSettings={showSettings}
-                setShowSettings={setShowSettings}
-                selectedFile={selectedFile}
-                setSelectedFile={setSelectedFile}
-                uploadStatus={uploadStatus}
-                setUploadStatus={setUploadStatus}
-                textInput={textInput}
-                setTextInput={setTextInput}
-                handleUpload={handleUpload}
-            />
             {/* SETTINGS MODAL */}
             {showSettings && (
                 <div className="absolute inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
