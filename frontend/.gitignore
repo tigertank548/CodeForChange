@@ -14,6 +14,7 @@ dist-ssr
 
 # Config files with secrets
 src/config.js
+.env
 
 # Editor directories and files
 .vscode/*
