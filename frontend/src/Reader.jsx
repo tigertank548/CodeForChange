@@ -1,18 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useConversation } from '@elevenlabs/react';
 import { ElevenLabsClient, ElevenLabsEnvironment } from '@elevenlabs/elevenlabs-js';
-import { Mic, HelpCircle, Play, Square, Settings, Upload, X } from 'lucide-react';
+import { Mic, HelpCircle, Play, Square, Settings, X } from 'lucide-react';
 import { ELEVENLABS_API_KEY, AGENT_ID } from './config';
+import ParentZone from './ParentZone';
 
 // --- MOCK DATA FOR THE READING TEXT ---
 const SAMPLE_SENTENCE = "Hey Parent! Upload a text-based file to the settings in the upper right hand corner!";
 const SAMPLE_WORDS = SAMPLE_SENTENCE.split(" ");
 
+
 function Reader() {
     // --- STATE MANAGEMENT ---
     const [currentWordIndex, setCurrentWordIndex] = useState(0);
     const [micVolume, setMicVolume] = useState(0);
-    const [progress, setProgress] = useState(10);
 
     // Parent/Settings Mode State
     const [showSettings, setShowSettings] = useState(false);
@@ -20,9 +21,9 @@ function Reader() {
     const [uploadStatus, setUploadStatus] = useState('');
     const [messages, setMessages] = useState([]);
     const [currentText, setCurrentText] = useState(SAMPLE_SENTENCE);
-
+    const [textInput, setTextInput] = useState('');
     const paragraphs = currentText.split('\n').map(p => p.trim()).filter(p => p);
-    const allWords = paragraphs.flatMap(p => p.split(/\s+/));
+    const allWords = paragraphs.flatMap(p => p.split());
 
     // --- 1. ELEVENLABS HOOK ---
     const conversation = useConversation({
@@ -61,32 +62,40 @@ function Reader() {
     const handleFileChange = (event) => {
         const file = event.target.files[0];
         setSelectedFile(file);
+        setTextInput(''); // Clear text input when file is selected
         setUploadStatus('');
     };
 
     const handleUpload = async () => {
-        if (!selectedFile) {
-            setUploadStatus('Please select a file first.');
+        let content, name;
+        if (textInput.trim()) {
+            content = textInput;
+            name = 'Pasted Text';
+        } else if (selectedFile) {
+            content = await selectedFile.text();
+            name = selectedFile.name;
+        } else {
+            setUploadStatus('Please provide text or select a file.');
             return;
         }
 
-        const textTypes = [
-            'text/plain', 'application/json', 'application/xml', 'text/csv',
-            'text/html', 'application/javascript', 'application/x-javascript',
-            'application/x-www-form-urlencoded', 'application/x-yaml',
-            'text/markdown', 'text/xml', 'text/css',
-        ];
-
-        if (!textTypes.includes(selectedFile.type)) {
-            setUploadStatus('Error: Only text-based files allowed.');
-            return;
+        // Validation for file types if file is selected
+        if (selectedFile) {
+            const textTypes = [
+                'text/plain', 'application/json', 'application/xml', 'text/csv',
+                'text/html', 'application/javascript', 'application/x-javascript',
+                'application/x-www-form-urlencoded', 'application/x-yaml',
+                'text/markdown', 'text/xml', 'text/css',
+            ];
+            if (!textTypes.includes(selectedFile.type)) {
+                setUploadStatus('Error: Only text-based files allowed.');
+                return;
+            }
         }
 
         setUploadStatus('Uploading...');
 
         try {
-            const content = await selectedFile.text();
-
             const client = new ElevenLabsClient({
                 apiKey: ELEVENLABS_API_KEY,
                 environment: ElevenLabsEnvironment.Production,
@@ -94,13 +103,14 @@ function Reader() {
 
             await client.conversationalAi.knowledgeBase.documents.createFromText({
                 text: content,
-                name: selectedFile.name,
+                name: name,
             });
 
             setCurrentText(content);
             setCurrentWordIndex(0);
-            setUploadStatus(`Success! "${selectedFile.name}" added to knowledge base.`);
+            setUploadStatus(`Success! "${name}" added to knowledge base.`);
             setSelectedFile(null);
+            setTextInput('');
         } catch (error) {
             console.error('Error uploading file:', error);
             setUploadStatus('Upload failed. Check console for details.');
@@ -122,58 +132,21 @@ function Reader() {
         <div className="flex flex-col min-h-screen bg-blue-50 p-4 md:p-6 lg:p-8 font-sans relative">
 
             {/* --- PARENT SETTINGS MODAL --- */}
-            {showSettings && (
-                <div className="absolute inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-                    <div className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl border-4 border-blue-100">
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-2xl font-bold text-gray-800">Parent Zone 🔒</h2>
-                            <button onClick={() => setShowSettings(false)} className="p-2 hover:bg-gray-100 rounded-full cursor-pointer">
-                                <X size={24} className="text-gray-500" />
-                            </button>
-                        </div>
-
-                        {/* File Upload Section */}
-                        <div className="space-y-4">
-                            <div className="p-4 border-2 border-dashed border-blue-300 rounded-xl bg-blue-50 flex flex-col items-center gap-2 text-center">
-                                <Upload size={32} className="text-blue-400" />
-                                <p className="text-sm text-gray-600 font-medium">Upload Story Text</p>
-                                <input
-                                    type="file"
-                                    onChange={handleFileChange}
-                                    className="text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200 cursor-pointer"
-                                />
-                            </div>
-
-                            {uploadStatus && (
-                                <p className={`text-center text-sm font-bold ${uploadStatus.includes('Success') ? 'text-green-600' : (uploadStatus.includes('Error') || uploadStatus.includes('failed')) ? 'text-red-500' : 'text-blue-600'}`}>
-                                    {uploadStatus}
-                                </p>
-                            )}
-
-                            <button
-                                onClick={handleUpload}
-                                disabled={!selectedFile}
-                                className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                            >
-                                Upload to Agent
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <ParentZone
+                showSettings={showSettings}
+                setShowSettings={setShowSettings}
+                selectedFile={selectedFile}
+                setSelectedFile={setSelectedFile}
+                uploadStatus={uploadStatus}
+                setUploadStatus={setUploadStatus}
+                textInput={textInput}
+                setTextInput={setTextInput}
+                handleUpload={handleUpload}
+            />
 
             {/* --- HEADER --- */}
             <header className="flex justify-between items-center mb-4 md:mb-6 lg:mb-8">
-                <div className="flex items-center gap-4 flex-1">
-                    <span className="text-2xl font-bold text-yellow-500 hidden md:block">⭐ Star Power:</span>
-                    <div className="h-6 w-full max-w-md bg-gray-200 rounded-full overflow-hidden border-2 border-gray-300">
-                        <div
-                            className="h-full bg-yellow-400 transition-all duration-500 ease-out"
-                            style={{ width: `${progress}%` }}
-                        />
-                    </div>
-                </div>
-
+                <div></div>
                 {/* Settings Button */}
                 <button
                     onClick={() => setShowSettings(true)}
