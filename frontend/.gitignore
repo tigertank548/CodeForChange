@@ -25,3 +25,4 @@ src/config.js
 *.njsproj
 *.sln
 *.sw?
+.env
