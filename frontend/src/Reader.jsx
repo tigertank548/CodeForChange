@@ -4,6 +4,9 @@ import { ElevenLabsClient, ElevenLabsEnvironment } from '@elevenlabs/elevenlabs-
 import { Mic, HelpCircle, Play, Square, Settings, Upload, X, Globe, BookOpen, Sparkles } from 'lucide-react';
 import { ELEVENLABS_API_KEY, AGENT_ID } from './config';
 
+// --- IMPORT YOUR NEW COMPONENT ---
+import ParentZone from './ParentZone';
+
 const SAMPLE_SENTENCE = "Hey Parent! Upload a text-based file to the settings in the upper right hand corner!";
 
 function Reader() {
@@ -14,9 +17,11 @@ function Reader() {
     const [sourceType, setSourceType] = useState('manual');
     const [isRequestingNext, setIsRequestingNext] = useState(false);
 
+    // Parent Zone State
     const [showSettings, setShowSettings] = useState(false);
     const [selectedFile, setSelectedFile] = useState(null);
     const [uploadStatus, setUploadStatus] = useState('');
+    const [textInput, setTextInput] = useState(''); // Added this back for ParentZone
     const [messages, setMessages] = useState([]);
     const [currentText, setCurrentText] = useState(SAMPLE_SENTENCE);
 
@@ -69,6 +74,7 @@ function Reader() {
             if (message.type === 'agent_response') {
                 setMessages(prev => [...prev, { type: 'agent', text: message.message }]);
 
+                // Fallback Logic
                 if (!toolWasUsedRef.current && message.message.length > 10) {
                     console.log("⚠️ Fallback: Using audio text");
                     setCurrentText(message.message);
@@ -81,12 +87,9 @@ function Reader() {
             }
 
             else if (message.type === 'user_transcript') {
-                // REAL-TIME KARAOKE LOGIC
-                // The transcript comes in as a growing string or chunks. 
-                // We check the latest words against our current position.
+                // REAL-TIME KARAOKE LOGIC (Fixed!)
 
                 // 1. Get the current target word we are looking for
-                // We use the Ref here to get the absolute latest index without waiting for re-renders
                 let currentIndex = wordIndexRef.current;
 
                 // Safety check
@@ -140,6 +143,7 @@ function Reader() {
             await conversation.endSession();
         } else {
             try {
+                // Using Vercel Environment Variable
                 await conversation.startSession({ agentId: import.meta.env.VITE_AGENT_ID, });
             } catch (error) {
                 console.error('Failed to start:', error);
@@ -157,6 +161,7 @@ function Reader() {
         setUploadStatus('Uploading...');
         try {
             const content = await selectedFile.text();
+            // Using Vercel Environment Variable
             const client = new ElevenLabsClient({
                 apiKey: import.meta.env.VITE_ELEVENLABS_API_KEY,
                 environment: ElevenLabsEnvironment.Production,
@@ -187,30 +192,21 @@ function Reader() {
     return (
         <div className="flex flex-col min-h-screen bg-blue-50 p-4 md:p-6 lg:p-8 font-sans relative">
 
-            {/* SETTINGS MODAL */}
-            {showSettings && (
-                <div className="absolute inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-                    <div className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl border-4 border-blue-100">
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-2xl font-bold text-gray-800">Parent Zone 🔒</h2>
-                            <button onClick={() => setShowSettings(false)} className="p-2 hover:bg-gray-100 rounded-full cursor-pointer">
-                                <X size={24} className="text-gray-500" />
-                            </button>
-                        </div>
-                        <div className="space-y-4">
-                            <div className="p-4 border-2 border-dashed border-blue-300 rounded-xl bg-blue-50 flex flex-col items-center gap-2 text-center">
-                                <Upload size={32} className="text-blue-400" />
-                                <p className="text-sm text-gray-600 font-medium">Upload Story Text</p>
-                                <input type="file" onChange={handleFileChange} className="text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200 cursor-pointer" />
-                            </div>
-                            {uploadStatus && <p className="text-center text-sm font-bold text-blue-600">{uploadStatus}</p>}
-                            <button onClick={handleUpload} disabled={!selectedFile} className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
-                                Upload to Agent
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* --- PARENT SETTINGS MODAL (Now using your separate file) --- */}
+            <ParentZone
+                showSettings={showSettings}
+                setShowSettings={setShowSettings}
+                selectedFile={selectedFile}
+                setSelectedFile={setSelectedFile}
+                uploadStatus={uploadStatus}
+                setUploadStatus={setUploadStatus}
+                textInput={textInput}
+                setTextInput={setTextInput}
+                handleUpload={handleUpload}
+                // If ParentZone handles file change internally, pass handleFileChange, 
+                // otherwise pass the setter as needed. Based on your previous code:
+                handleFileChange={handleFileChange}
+            />
 
             {/* HEADER */}
             <header className="flex justify-between items-center mb-4 md:mb-6 lg:mb-8">
