@@ -18,10 +18,11 @@ function Reader() {
     const [showSettings, setShowSettings] = useState(false);
     const [selectedFile, setSelectedFile] = useState(null);
     const [uploadStatus, setUploadStatus] = useState('');
-    const [messages, setMessages] = useState([]); // From teammate's code
+    const [messages, setMessages] = useState([]);
     const [currentText, setCurrentText] = useState(SAMPLE_SENTENCE);
 
-    const currentWords = currentText.split(" ");
+    const paragraphs = currentText.split('\n').map(p => p.trim()).filter(p => p);
+    const allWords = paragraphs.flatMap(p => p.split(/\s+/));
 
     // --- 1. ELEVENLABS HOOK ---
     const conversation = useConversation({
@@ -69,7 +70,6 @@ function Reader() {
             return;
         }
 
-        // Validation from teammate's code
         const textTypes = [
             'text/plain', 'application/json', 'application/xml', 'text/csv',
             'text/html', 'application/javascript', 'application/x-javascript',
@@ -196,20 +196,33 @@ function Reader() {
                 </div>
 
                 {/* Text Pane */}
-                <div className="bg-white p-4 md:p-6 lg:p-8 rounded-3xl shadow-xl border-4 border-blue-200 w-full text-center min-h-[200px] max-h-[300px] md:max-h-[400px] lg:max-h-[500px] overflow-y-auto flex justify-center pt-4 md:pt-6 lg:pt-8">
-                    <div className="flex flex-wrap justify-center gap-3 text-2xl md:text-4xl lg:text-5xl font-bold leading-relaxed text-gray-700 font-comic pr-4">
-                        {currentWords.map((word, index) => (
-                            <span
-                                key={index}
-                                className={`px-2 py-1 rounded-lg transition-colors duration-300 ${index === currentWordIndex ? 'bg-yellow-200 text-black scale-105 transform' :
-                                    index === currentWordIndex + 1 ? 'bg-blue-100 text-gray-800' :
-                                        index < currentWordIndex ? 'text-gray-300' : ''
-                                    }`}
-                            >
-                                {word}
-                            </span>
-                        ))}
-                    </div>
+                <div className="bg-white p-4 md:p-6 lg:p-8 rounded-3xl shadow-xl border-4 border-blue-200 w-full text-center min-h-[200px] max-h-[300px] md:max-h-[400px] lg:max-h-[500px] overflow-y-auto flex flex-col justify-start pt-4 md:pt-6 lg:pt-8">
+                    {(() => {
+                        let wordIndex = 0;
+                        return paragraphs.map((para, paraIndex) => {
+                            const words = para.split(/\s+/);
+                            const paraContent = words.map((word, i) => {
+                                const globalIndex = wordIndex + i;
+                                return (
+                                    <span
+                                        key={globalIndex}
+                                        className={`px-2 py-1 rounded-lg transition-colors duration-300 text-2xl md:text-4xl lg:text-5xl font-bold leading-relaxed text-gray-700 font-comic ${globalIndex === currentWordIndex ? 'bg-yellow-200 text-black scale-105 transform' :
+                                            globalIndex === currentWordIndex + 1 ? 'bg-blue-100 text-gray-800' :
+                                                globalIndex < currentWordIndex ? 'text-gray-300' : ''
+                                            }`}
+                                    >
+                                        {word}
+                                    </span>
+                                );
+                            });
+                            wordIndex += words.length;
+                            return (
+                                <div key={paraIndex} className="flex flex-wrap justify-center gap-3 mb-8 pr-4">
+                                    {paraContent}
+                                </div>
+                            );
+                        });
+                    })()}
                 </div>
 
                 {/* Visualizer */}
@@ -227,7 +240,7 @@ function Reader() {
             <footer className="mt-8 flex justify-center gap-8 md:gap-12 w-full max-w-2xl mx-auto">
                 <button
                     onClick={handleStartStop}
-                    className={`flex flex-col items-center justify-center p-4 rounded-2xl transition-all font-bold border-b-4 text-white shadow-lg active:border-b-0 active:translate-y-1 cursor-pointer ${isConnected ? 'bg-red-500 border-red-700 hover:bg-red-600' : 'bg-green-500 border-green-700 hover:bg-green-600'
+                    className={`flex flex-col items-center justify-center p-3 rounded-2xl transition-all font-bold border-b-4 text-white shadow-lg active:border-b-0 active:translate-y-1 cursor-pointer w-24 ${isConnected ? 'bg-red-500 border-red-700 hover:bg-red-600' : 'bg-green-500 border-green-700 hover:bg-green-600'
                         }`}
                 >
                     {isConnected ? <Square size={32} fill="currentColor" /> : <Play size={32} fill="currentColor" />}
@@ -253,7 +266,7 @@ const ControlButton = ({ icon, label, color, onClick }) => {
         orange: "bg-orange-100 hover:bg-orange-200 text-orange-700 border-orange-300"
     };
     return (
-        <button onClick={onClick} className={`flex flex-col items-center justify-center p-3 rounded-2xl transition-colors font-bold border-b-4 active:border-b-0 active:translate-y-1 cursor-pointer ${colors[color]}`}>
+        <button onClick={onClick} className={`flex flex-col items-center justify-center p-3 rounded-2xl transition-colors font-bold border-b-4 active:border-b-0 active:translate-y-1 cursor-pointer w-24 ${colors[color]}`}>
             {icon}
             <span className="mt-1 text-sm md:text-base">{label}</span>
         </button>
