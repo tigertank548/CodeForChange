@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useConversation } from '@elevenlabs/react';
 import { ElevenLabsClient, ElevenLabsEnvironment } from '@elevenlabs/elevenlabs-js';
 import { Mic, HelpCircle, Play, Square, Settings, Upload, X, Globe, BookOpen, Sparkles } from 'lucide-react';
+import gatorLogo from './assets/gatorreads-logo.png';
 
 // --- IMPORT YOUR NEW COMPONENT ---
 import ParentZone from './ParentZone';
@@ -79,7 +80,7 @@ function Reader() {
                     console.log("⚠️ Fallback: Using audio text");
                     setCurrentText(message.message);
                     setCurrentWordIndex(0);
-                        setSourceType('agent');
+                    setSourceType('agent');
                     setIsRequestingNext(false);
                 }
                 setTimeout(() => { toolWasUsedRef.current = false; }, 2000);
@@ -147,6 +148,15 @@ function Reader() {
             }
         }
     };
+
+    
+    const handleStuck = async () => {
+        if (!isConnected) return;
+            console.log("🆘 I'm stuck clicked");
+            await conversation.sendUserMessage("I am stuck. Please ask me exactly: 'What word do you need help with?'");
+    };
+
+        
 
     const handleFileChange = (e) => {
         setSelectedFile(e.target.files[0]);
@@ -216,8 +226,13 @@ function Reader() {
                 setReaderFont={setReaderFont}
             />
 
+            <img
+                src={gatorLogo}
+                alt="GatorReads Logo"
+                className="absolute top-4 left-4 h-24 md:h-40 w-auto object-contain z-10"
+            />
             {/* HEADER */}
-            <header className="flex justify-end items-center mb-4 md:mb-6 lg:mb-8">
+            <header className="w-full flex justify-end items-center mb-4 md:mb-6 lg:mb-8 relative z-20">
                 <button onClick={() => setShowSettings(true)} className="ml-4 p-3 bg-white rounded-full shadow-md hover:bg-gray-50 transition border border-blue-100 text-gray-400 hover:text-blue-500 cursor-pointer">
                     <Settings size={24} />
                 </button>
@@ -278,7 +293,8 @@ function Reader() {
                     {isConnected ? <Square size={32} fill="currentColor" /> : <Play size={32} fill="currentColor" />}
                     <span className="mt-1 text-sm md:text-base">{isConnected ? 'Stop' : 'Start'}</span>
                 </button>
-                <ControlButton icon={<HelpCircle size={28} />} label="I'm Stuck" color="orange" onClick={() => console.log('Help')} />
+            
+                <ControlButton icon={<HelpCircle size={28} />} label="I'm Stuck" color="orange" onClick={handleStuck} />
             </footer>
         </div>
     );
