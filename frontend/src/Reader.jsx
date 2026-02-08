@@ -9,9 +9,9 @@ import DefinitionModal from './DefinitionModal';
 
 const SAMPLE_SENTENCE = "Hey Parent! Upload a text-based file to the settings in the upper right hand corner!";
 
+
 function Reader() {
     // --- STATE MANAGEMENT ---
-    const [currentWordIndex, setCurrentWordIndex] = useState(0);
     const [micVolume, setMicVolume] = useState(0);
     const [sourceType, setSourceType] = useState('manual');
     const [isRequestingNext, setIsRequestingNext] = useState(false); // New: Prevents double-firing
@@ -34,13 +34,9 @@ function Reader() {
     // Track tool usage & transcripts
     const toolWasUsedRef = useRef(false);
 
-    // NEW: We need a ref to track the word index so the callback always has the latest value
-    const wordIndexRef = useRef(0);
-
     // Sync state to ref
     useEffect(() => {
-        wordIndexRef.current = currentWordIndex;
-    }, [currentWordIndex]);
+    }, []);
 
 
     // --- 1. ELEVENLABS HOOK ---
@@ -61,7 +57,6 @@ function Reader() {
                 }
 
                 setCurrentText(newText);
-                setCurrentWordIndex(0);
                 setSourceType('agent');
                 setIsRequestingNext(false);
                 toolWasUsedRef.current = true;
@@ -78,37 +73,13 @@ function Reader() {
                 if (!toolWasUsedRef.current && message.message.length > 10) {
                     console.log("⚠️ Fallback: Using audio text");
                     setCurrentText(message.message);
-                    setCurrentWordIndex(0);
-                        setSourceType('agent');
+                    setSourceType('agent');
                     setIsRequestingNext(false);
                 }
                 setTimeout(() => { toolWasUsedRef.current = false; }, 2000);
             }
-
             else if (message.type === 'user_transcript') {
-                // REAL-TIME KARAOKE LOGIC (Fixed!)
-
-                // 1. Get the current target word we are looking for
-                let currentIndex = wordIndexRef.current;
-
-                // Safety check
-                if (currentIndex >= allWordsRaw.length) return;
-
-                const targetWordClean = allWordsRaw[currentIndex].toLowerCase().replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, "");
-
-                // 2. Clean the incoming transcript chunk
-                const spokenChunk = message.message.toLowerCase();
-
-                // 3. Check if the target word is inside this latest chunk
-                if (spokenChunk.includes(targetWordClean)) {
-                    console.log(`🎤 Matched word: ${targetWordClean}`);
-
-                    // Move to next word!
-                    const newIndex = currentIndex + 1;
-                    setCurrentWordIndex(newIndex);
-
-
-                }
+                // User transcript is received here, but we are not doing anything with it.
             }
         },
         onError: (error) => console.error('Error:', error),
@@ -119,19 +90,8 @@ function Reader() {
 
     // --- AUTO-ADVANCE LOGIC ---
     useEffect(() => {
-        if (isConnected && totalWordCount > 0 && currentWordIndex >= totalWordCount) {
-            if (!isRequestingNext && !isSpeaking) {
-                console.log("🚀 Auto-advancing: User finished reading!");
-                setIsRequestingNext(true);
-
-                setTimeout(() => {
-                    if (conversation.sendUserMessage) {
-                        conversation.sendUserMessage("I finished reading that part. Please show me the next sentence.");
-                    }
-                }, 1500);
-            }
-        }
-    }, [currentWordIndex, totalWordCount, isConnected, isRequestingNext, isSpeaking, conversation]);
+        // This is a placeholder for the auto-advance logic, which is currently disabled.
+    }, [isConnected, isRequestingNext, isSpeaking, conversation]);
 
 
     // --- HANDLERS ---
@@ -251,9 +211,7 @@ function Reader() {
                                     <span
                                         key={globalIndex}
                                         onDoubleClick={() => handleWordDoubleClick(word)}
-                                        className={`px-2 py-1 rounded-lg transition-all duration-300 ease-in-out text-2xl md:text-4xl lg:text-5xl font-bold leading-relaxed cursor-pointer ${readerFont} ${globalIndex === currentWordIndex ? 'bg-yellow-200 text-black underline' :
-                                            globalIndex < currentWordIndex ? 'text-gray-400' : 'text-black'
-                                            }`}>
+                                        className={`px-2 py-1 rounded-lg transition-all duration-300 ease-in-out text-2xl md:text-4xl lg:text-5xl font-bold leading-relaxed cursor-pointer ${readerFont} text-gray-700`}>
                                         {word}
                                     </span>
                                 );
@@ -293,10 +251,10 @@ const AvatarDisplay = ({ isSpeaking, isConnected, sourceType }) => (
     </div>
 );
 
-const ControlButton = ({ icon, label, color, onClick }) => {
+const ControlButton = ({ icon, label, color, onClick, className }) => {
     const colors = { orange: "bg-orange-100 hover:bg-orange-200 text-orange-700 border-orange-300" };
     return (
-        <button onClick={onClick} className={`flex flex-col items-center justify-center p-3 rounded-2xl transition-colors font-bold border-b-4 active:border-b-0 active:translate-y-1 cursor-pointer w-24 ${colors[color]}`}>
+        <button onClick={onClick} className={`flex flex-col items-center justify-center p-3 rounded-2xl transition-colors font-bold border-b-4 active:border-b-0 active:translate-y-1 cursor-pointer w-24 ${colors[color]} ${className || ''}`}>
             {icon}
             <span className="mt-1 text-sm md:text-base">{label}</span>
         </button>
