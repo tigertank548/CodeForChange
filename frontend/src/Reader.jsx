@@ -251,8 +251,8 @@ function Reader() {
                                     <span
                                         key={globalIndex}
                                         onDoubleClick={() => handleWordDoubleClick(word)}
-                                        className={`px-2 py-1 rounded-lg transition-all duration-300 ease-in-out text-2xl md:text-4xl lg:text-5xl font-bold leading-relaxed cursor-pointer ${readerFont} ${globalIndex === currentWordIndex ? 'bg-yellow-300 text-black scale-110 transform shadow-md rotate-1' :
-                                            globalIndex < currentWordIndex ? 'text-blue-300' : 'text-gray-700'
+                                        className={`px-2 py-1 rounded-lg transition-all duration-300 ease-in-out text-2xl md:text-4xl lg:text-5xl font-bold leading-relaxed cursor-pointer ${readerFont} ${globalIndex === currentWordIndex ? 'bg-yellow-200 text-black underline' :
+                                            globalIndex < currentWordIndex ? 'text-gray-400' : 'text-black'
                                             }`}>
                                         {word}
                                     </span>
