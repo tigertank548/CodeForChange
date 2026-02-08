@@ -12,7 +12,6 @@ function Reader() {
     // --- STATE MANAGEMENT ---
     const [currentWordIndex, setCurrentWordIndex] = useState(0);
     const [micVolume, setMicVolume] = useState(0);
-    const [progress, setProgress] = useState(0);
     const [sourceType, setSourceType] = useState('manual');
     const [isRequestingNext, setIsRequestingNext] = useState(false); // New: Prevents double-firing
 
@@ -21,6 +20,7 @@ function Reader() {
     const [uploadStatus, setUploadStatus] = useState('');
     const [messages, setMessages] = useState([]);
     const [currentText, setCurrentText] = useState(SAMPLE_SENTENCE);
+    const [textInput, setTextInput] = useState('');
 
     // Derived state
     const paragraphs = currentText.split('\n').map(p => p.trim()).filter(p => p);
@@ -50,7 +50,6 @@ function Reader() {
                 // New text arrived! Reset everything.
                 setCurrentText(newText);
                 setCurrentWordIndex(0);
-                setProgress(0);
                 setSourceType('agent');
                 setIsRequestingNext(false); // Reset auto-advance lock
                 toolWasUsedRef.current = true;
@@ -70,7 +69,6 @@ function Reader() {
                         console.log("⚠️ Fallback: Using audio text");
                         setCurrentText(message.message);
                         setCurrentWordIndex(0);
-                        setProgress(0);
                         setSourceType('agent');
                         setIsRequestingNext(false); // Reset auto-advance lock
                     }
@@ -111,8 +109,6 @@ function Reader() {
 
                         if (matchCount > 0) {
                             const newIndex = Math.min(prevIndex + matchCount, currentAllWords.length);
-                            const newProgress = Math.min(100, (newIndex / currentAllWords.length) * 100);
-                            setProgress(newProgress);
                             return newIndex;
                         }
                         return prevIndex;
@@ -243,39 +239,8 @@ function Reader() {
                 setTextInput={setTextInput}
                 handleUpload={handleUpload}
             />
-            {/* SETTINGS MODAL */}
-            {showSettings && (
-                <div className="absolute inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-                    <div className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl border-4 border-blue-100">
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-2xl font-bold text-gray-800">Parent Zone 🔒</h2>
-                            <button onClick={() => setShowSettings(false)} className="p-2 hover:bg-gray-100 rounded-full cursor-pointer">
-                                <X size={24} className="text-gray-500" />
-                            </button>
-                        </div>
-                        <div className="space-y-4">
-                            <div className="p-4 border-2 border-dashed border-blue-300 rounded-xl bg-blue-50 flex flex-col items-center gap-2 text-center">
-                                <Upload size={32} className="text-blue-400" />
-                                <p className="text-sm text-gray-600 font-medium">Upload Story Text</p>
-                                <input type="file" onChange={handleFileChange} className="text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200 cursor-pointer" />
-                            </div>
-                            {uploadStatus && <p className="text-center text-sm font-bold text-blue-600">{uploadStatus}</p>}
-                            <button onClick={handleUpload} disabled={!selectedFile} className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
-                                Upload to Agent
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
             {/* HEADER */}
-            <header className="flex justify-between items-center mb-4 md:mb-6 lg:mb-8">
-                <div className="flex items-center gap-4 flex-1">
-                    <span className="text-2xl font-bold text-yellow-500 hidden md:block">⭐ Star Power:</span>
-                    <div className="h-6 w-full max-w-md bg-gray-200 rounded-full overflow-hidden border-2 border-gray-300">
-                        <div className="h-full bg-yellow-400 transition-all duration-500 ease-out" style={{ width: `${progress}%` }} />
-                    </div>
-                </div>
+            <header className="flex justify-end items-center mb-4 md:mb-6 lg:mb-8">
                 <button onClick={() => setShowSettings(true)} className="ml-4 p-3 bg-white rounded-full shadow-md hover:bg-gray-50 transition border border-blue-100 text-gray-400 hover:text-blue-500 cursor-pointer">
                     <Settings size={24} />
                 </button>
