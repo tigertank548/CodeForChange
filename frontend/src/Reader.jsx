@@ -52,6 +52,11 @@ function Reader() {
                 const newText = parameters.text;
                 console.log("🛠️ Agent Tool Call:", newText);
 
+                if (newText.includes("What word") || newText.includes("help with")) {
+                    console.log("🚫 Ignoring help prompt. Keeping story on screen.");
+                    return "Ignored help prompt.";
+                }
+
                 if (!newText || newText.includes("Chatting") || newText.length < 5) {
                     console.log("🚫 Ignoring placeholder.");
                     toolWasUsedRef.current = false;
