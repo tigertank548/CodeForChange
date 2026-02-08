@@ -13,7 +13,6 @@ function Reader() {
     // --- STATE MANAGEMENT ---
     const [currentWordIndex, setCurrentWordIndex] = useState(0);
     const [micVolume, setMicVolume] = useState(0);
-    const [progress, setProgress] = useState(0);
     const [sourceType, setSourceType] = useState('manual');
     const [isRequestingNext, setIsRequestingNext] = useState(false); // New: Prevents double-firing
     const [definitionWord, setDefinitionWord] = useState(null);
@@ -63,7 +62,6 @@ function Reader() {
 
                 setCurrentText(newText);
                 setCurrentWordIndex(0);
-                setProgress(0);
                 setSourceType('agent');
                 setIsRequestingNext(false);
                 toolWasUsedRef.current = true;
@@ -81,8 +79,7 @@ function Reader() {
                     console.log("⚠️ Fallback: Using audio text");
                     setCurrentText(message.message);
                     setCurrentWordIndex(0);
-                    setProgress(0);
-                    setSourceType('agent');
+                        setSourceType('agent');
                     setIsRequestingNext(false);
                 }
                 setTimeout(() => { toolWasUsedRef.current = false; }, 2000);
@@ -110,9 +107,7 @@ function Reader() {
                     const newIndex = currentIndex + 1;
                     setCurrentWordIndex(newIndex);
 
-                    // Update progress
-                    const newProgress = Math.min(100, (newIndex / allWordsRaw.length) * 100);
-                    setProgress(newProgress);
+
                 }
             }
         },
@@ -222,13 +217,7 @@ function Reader() {
             />
 
             {/* HEADER */}
-            <header className="flex justify-between items-center mb-4 md:mb-6 lg:mb-8">
-                <div className="flex items-center gap-4 flex-1">
-                    <span className="text-2xl font-bold text-yellow-500 hidden md:block">⭐ Star Power:</span>
-                    <div className="h-6 w-full max-w-md bg-gray-200 rounded-full overflow-hidden border-2 border-gray-300">
-                        <div className="h-full bg-yellow-400 transition-all duration-500 ease-out" style={{ width: `${progress}%` }} />
-                    </div>
-                </div>
+            <header className="flex justify-end items-center mb-4 md:mb-6 lg:mb-8">
                 <button onClick={() => setShowSettings(true)} className="ml-4 p-3 bg-white rounded-full shadow-md hover:bg-gray-50 transition border border-blue-100 text-gray-400 hover:text-blue-500 cursor-pointer">
                     <Settings size={24} />
                 </button>
