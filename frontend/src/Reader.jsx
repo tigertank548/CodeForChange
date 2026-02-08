@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useConversation } from '@elevenlabs/react';
 import { ElevenLabsClient, ElevenLabsEnvironment } from '@elevenlabs/elevenlabs-js';
-import { Mic, Volume2, HelpCircle, Play, Square, Settings, Upload, X } from 'lucide-react';
+import { Mic, HelpCircle, Play, Square, Settings, Upload, X } from 'lucide-react';
+import { ELEVENLABS_API_KEY, AGENT_ID } from './config';
 
 // --- MOCK DATA FOR THE READING TEXT ---
-const SAMPLE_SENTENCE = "Hey Parrent! Upload a text-based file to the settings in the upper right hand corner!";
+const SAMPLE_SENTENCE = "Hey Parent! Upload a text-based file to the settings in the upper right hand corner!";
 const SAMPLE_WORDS = SAMPLE_SENTENCE.split(" ");
 
 function Reader() {
@@ -30,6 +31,9 @@ function Reader() {
             console.log('Message:', message);
             if (message.type === 'agent_response') {
                 setMessages(prev => [...prev, { type: 'agent', text: message.message }]);
+            } else if (message.type === 'user_transcript') {
+                setMessages(prev => [...prev, { type: 'user', text: message.message }]);
+                setCurrentWordIndex(prev => prev + message.message.trim().split(/\s+/).length);
             }
         },
         onError: (error) => console.error('Error:', error),
@@ -45,7 +49,7 @@ function Reader() {
         } else {
             try {
                 await conversation.startSession({
-                    agentId: 'agent_0001kgx6svdneret8meb62y6ksbj',
+                    agentId: AGENT_ID,
                 });
             } catch (error) {
                 console.error('Failed to start:', error);
@@ -84,7 +88,7 @@ function Reader() {
             const content = await selectedFile.text();
 
             const client = new ElevenLabsClient({
-                apiKey: 'e5b22b9f4c5f7727704a4092741f7d223f7f5b1cc49d9a24146d46d736f2c1ac',
+                apiKey: ELEVENLABS_API_KEY,
                 environment: ElevenLabsEnvironment.Production,
             });
 
@@ -198,7 +202,8 @@ function Reader() {
                             <span
                                 key={index}
                                 className={`px-2 py-1 rounded-lg transition-colors duration-300 ${index === currentWordIndex ? 'bg-yellow-200 text-black scale-105 transform' :
-                                    index < currentWordIndex ? 'text-gray-300' : ''
+                                    index === currentWordIndex + 1 ? 'bg-blue-100 text-gray-800' :
+                                        index < currentWordIndex ? 'text-gray-300' : ''
                                     }`}
                             >
                                 {word}
@@ -219,9 +224,7 @@ function Reader() {
             </main>
 
             {/* --- FOOTER CONTROLS --- */}
-            <footer className="mt-8 grid grid-cols-3 gap-4 md:gap-6 w-full max-w-2xl mx-auto">
-                <ControlButton icon={<Volume2 size={28} />} label="Read to Me" color="purple" onClick={() => console.log('Read')} />
-
+            <footer className="mt-8 flex justify-center gap-8 md:gap-12 w-full max-w-2xl mx-auto">
                 <button
                     onClick={handleStartStop}
                     className={`flex flex-col items-center justify-center p-4 rounded-2xl transition-all font-bold border-b-4 text-white shadow-lg active:border-b-0 active:translate-y-1 cursor-pointer ${isConnected ? 'bg-red-500 border-red-700 hover:bg-red-600' : 'bg-green-500 border-green-700 hover:bg-green-600'
