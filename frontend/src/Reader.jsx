@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useConversation } from '@elevenlabs/react';
 import { ElevenLabsClient, ElevenLabsEnvironment } from '@elevenlabs/elevenlabs-js';
 import { Mic, HelpCircle, Play, Square, Settings, Upload, X, Globe, BookOpen, Sparkles } from 'lucide-react';
@@ -11,76 +11,76 @@ function Reader() {
     const [currentWordIndex, setCurrentWordIndex] = useState(0);
     const [micVolume, setMicVolume] = useState(0);
     const [progress, setProgress] = useState(0);
-    const [sourceType, setSourceType] = useState('manual'); // 'manual', 'web', 'kb', 'agent'
+    const [sourceType, setSourceType] = useState('manual');
+    const [isRequestingNext, setIsRequestingNext] = useState(false); // New: Prevents double-firing
 
     const [showSettings, setShowSettings] = useState(false);
     const [selectedFile, setSelectedFile] = useState(null);
     const [uploadStatus, setUploadStatus] = useState('');
     const [messages, setMessages] = useState([]);
     const [currentText, setCurrentText] = useState(SAMPLE_SENTENCE);
-    const toolWasUsedRef = React.useRef(false);
 
     // Derived state
     const paragraphs = currentText.split('\n').map(p => p.trim()).filter(p => p);
     const allWordsRaw = paragraphs.flatMap(p => p.split(/\s+/));
+    const totalWordCount = allWordsRaw.length;
+
+    // Track tool usage
+    const toolWasUsedRef = useRef(false);
 
     // --- 1. ELEVENLABS HOOK ---
     const conversation = useConversation({
         onConnect: () => console.log('Connected to Reader Agent'),
         onDisconnect: () => console.log('Disconnected'),
 
-        // --- A. CLIENT TOOLS (The Agent's Remote Control) ---
+        // --- CLIENT TOOLS ---
         clientTools: {
             update_screen_text: (parameters) => {
                 const newText = parameters.text;
                 console.log("🛠️ Agent Tool Call:", newText);
 
-                // FILTER: Ignore "Chatting..." or very short placeholders
                 if (!newText || newText.includes("Chatting") || newText.length < 5) {
-                    console.log("🚫 Ignoring placeholder. Waiting for audio fallback...");
-                    toolWasUsedRef.current = false; // Mark as failed so fallback kicks in
+                    console.log("🚫 Ignoring placeholder.");
+                    toolWasUsedRef.current = false;
                     return "Placeholder ignored.";
                 }
 
-                // SUCCESS: Update the screen with real text
+                // New text arrived! Reset everything.
                 setCurrentText(newText);
                 setCurrentWordIndex(0);
                 setProgress(0);
                 setSourceType('agent');
-                toolWasUsedRef.current = true; // Mark as success
+                setIsRequestingNext(false); // Reset auto-advance lock
+                toolWasUsedRef.current = true;
                 return "Screen updated successfully.";
             }
         },
 
-        // --- B. MESSAGE HANDLING ---
+        // --- MESSAGE HANDLING ---
         onMessage: (message) => {
-            // 1. Handle Agent Speech (The Fallback)
             if (message.type === 'agent_response') {
                 setMessages(prev => [...prev, { type: 'agent', text: message.message }]);
 
-                // CHECK: Did the tool fail or send "Chatting..."? 
-                // If so, use this audio transcript as the screen text!
+                // Fallback Logic
                 if (!toolWasUsedRef.current) {
-                    console.log("⚠️ Fallback: Using audio transcript for screen text");
-
-                    // Only update if it's a substantive message (not just "Hmm" or "Okay")
-                    if (message.message.length > 5) {
+                    // Only fallback if message is substantial
+                    if (message.message.length > 10) {
+                        console.log("⚠️ Fallback: Using audio text");
                         setCurrentText(message.message);
                         setCurrentWordIndex(0);
+                        setProgress(0);
                         setSourceType('agent');
+                        setIsRequestingNext(false); // Reset auto-advance lock
                     }
                 }
-
-                // Reset the ref for the next turn (after a short delay to be safe)
                 setTimeout(() => { toolWasUsedRef.current = false; }, 2000);
             }
 
-            // 2. Handle User Speech (Karaoke Logic)
             else if (message.type === 'user_transcript') {
                 setMessages(prev => [...prev, { type: 'user', text: message.message }]);
-                toolWasUsedRef.current = false; // User spoke, so reset tool tracking
+                toolWasUsedRef.current = false;
 
-                // Calculate Karaoke Match
+                // Karaoke Logic
                 setCurrentText(currentTextState => {
                     const currentParagraphs = currentTextState.split('\n').map(p => p.trim()).filter(p => p);
                     const currentAllWords = currentParagraphs.flatMap(p => p.split(/\s+/));
@@ -115,26 +115,49 @@ function Reader() {
                         }
                         return prevIndex;
                     });
-
                     return currentTextState;
                 });
             }
         },
         onError: (error) => console.error('Error:', error),
     });
+
     const isConnected = conversation.status === 'connected';
     const isSpeaking = conversation.isSpeaking;
 
-    // --- 2. HANDLERS ---
+    // --- AUTO-ADVANCE LOGIC (NEW!) ---
+    useEffect(() => {
+        // If we are connected, have text, and reached the end...
+        if (isConnected && totalWordCount > 0 && currentWordIndex >= totalWordCount) {
+
+            // And we haven't already asked...
+            if (!isRequestingNext && !isSpeaking) {
+                console.log("🚀 Auto-advancing: User finished reading!");
+                setIsRequestingNext(true); // Lock it so we don't ask twice
+
+                // Wait 1.5s for dramatic effect (and to let the child finish speaking)
+                setTimeout(() => {
+                    // Send silent message to Agent
+                    // Check if sendUserMessage is available (it should be)
+                    if (conversation.sendUserMessage) {
+                        conversation.sendUserMessage("I finished reading that part. Please show me the next sentence.");
+                    } else {
+                        // Fallback for older SDK versions
+                        console.warn("sendUserMessage not found on conversation object");
+                    }
+                }, 1500);
+            }
+        }
+    }, [currentWordIndex, totalWordCount, isConnected, isRequestingNext, isSpeaking, conversation]);
+
+
+    // --- HANDLERS ---
     const handleStartStop = async () => {
         if (isConnected) {
             await conversation.endSession();
         } else {
             try {
-                // Ensure clientTools are enabled in the session config if required by your plan
-                await conversation.startSession({
-                    agentId: AGENT_ID,
-                });
+                await conversation.startSession({ agentId: AGENT_ID });
             } catch (error) {
                 console.error('Failed to start:', error);
             }
@@ -151,8 +174,6 @@ function Reader() {
         setUploadStatus('Uploading...');
         try {
             const content = await selectedFile.text();
-
-            // Upload to KB
             const client = new ElevenLabsClient({
                 apiKey: ELEVENLABS_API_KEY,
                 environment: ElevenLabsEnvironment.Production,
@@ -161,8 +182,6 @@ function Reader() {
                 text: content,
                 name: selectedFile.name,
             });
-
-            // Update Screen Immediately
             setCurrentText(content);
             setCurrentWordIndex(0);
             setSourceType('manual');
@@ -231,7 +250,7 @@ function Reader() {
                     {/* Source Badge */}
                     {isSpeaking && sourceType !== 'manual' && (
                         <div className={`absolute -right-32 top-8 px-3 py-1 rounded-full text-xs font-bold border shadow-sm animate-bounce ${sourceType === 'web' ? "bg-purple-100 text-purple-700 border-purple-200" :
-                            sourceType === 'agent' ? "bg-yellow-100 text-yellow-700 border-yellow-200" : ""
+                                sourceType === 'agent' ? "bg-yellow-100 text-yellow-700 border-yellow-200" : ""
                             }`}>
                             {sourceType === 'web' && <span className="flex items-center gap-1"><Globe size={12} /> Internet</span>}
                             {sourceType === 'agent' && <span className="flex items-center gap-1"><Sparkles size={12} /> AI Story</span>}
@@ -249,7 +268,7 @@ function Reader() {
                                 const globalIndex = wordIndex + i;
                                 return (
                                     <span key={globalIndex} className={`px-2 py-1 rounded-lg transition-all duration-300 ease-in-out text-2xl md:text-4xl lg:text-5xl font-bold leading-relaxed font-comic ${globalIndex === currentWordIndex ? 'bg-yellow-300 text-black scale-110 transform shadow-md rotate-1' :
-                                        globalIndex < currentWordIndex ? 'text-blue-300' : 'text-gray-700'
+                                            globalIndex < currentWordIndex ? 'text-blue-300' : 'text-gray-700'
                                         }`}>
                                         {word}
                                     </span>
@@ -283,8 +302,8 @@ function Reader() {
 
 const AvatarDisplay = ({ isSpeaking, isConnected, sourceType }) => (
     <div className={`w-32 h-32 md:w-40 md:h-40 bg-white rounded-full flex items-center justify-center text-6xl md:text-7xl shadow-2xl border-4 ring-4 transition-transform hover:scale-105 ${isSpeaking && sourceType === 'web' ? 'border-purple-200 ring-purple-100' :
-        isSpeaking && sourceType === 'agent' ? 'border-yellow-200 ring-yellow-100' :
-            'border-white ring-blue-100'
+            isSpeaking && sourceType === 'agent' ? 'border-yellow-200 ring-yellow-100' :
+                'border-white ring-blue-100'
         }`}>
         {!isConnected ? '🙂' : isSpeaking ? '🗣️' : '👂'}
     </div>
