@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useConversation } from '@elevenlabs/react';
 import { ElevenLabsClient, ElevenLabsEnvironment } from '@elevenlabs/elevenlabs-js';
 import { Mic, HelpCircle, Play, Square, Settings, Upload, X, Globe, BookOpen, Sparkles } from 'lucide-react';
-import { ELEVENLABS_API_KEY, AGENT_ID } from './config';
 
 // --- IMPORT YOUR NEW COMPONENT ---
 import ParentZone from './ParentZone';
