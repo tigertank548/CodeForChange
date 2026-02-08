@@ -4,6 +4,7 @@ import { ElevenLabsClient, ElevenLabsEnvironment } from '@elevenlabs/elevenlabs-
 import { Mic, HelpCircle, Play, Square, Settings, Upload, X, Globe, BookOpen, Sparkles } from 'lucide-react';
 import { ELEVENLABS_API_KEY, AGENT_ID } from './config';
 import ParentZone from './ParentZone';
+import DefinitionModal from './DefinitionModal';
 
 const SAMPLE_SENTENCE = "Hey Parent! Upload a text-based file to the settings in the upper right hand corner!";
 
@@ -14,6 +15,8 @@ function Reader() {
     const [micVolume, setMicVolume] = useState(0);
     const [sourceType, setSourceType] = useState('manual');
     const [isRequestingNext, setIsRequestingNext] = useState(false); // New: Prevents double-firing
+    const [definitionWord, setDefinitionWord] = useState(null);
+    const [readerFont, setReaderFont] = useState('font-comic');
 
     const [showSettings, setShowSettings] = useState(false);
     const [selectedFile, setSelectedFile] = useState(null);
@@ -216,6 +219,11 @@ function Reader() {
         }
     };
 
+    const handleWordDoubleClick = (word) => {
+        const cleanedWord = word.replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, "");
+        setDefinitionWord(cleanedWord);
+    };
+
     // --- VISUALIZER ---
     useEffect(() => {
         let interval;
@@ -226,6 +234,13 @@ function Reader() {
 
     return (
         <div className="flex flex-col min-h-screen bg-blue-50 p-4 md:p-6 lg:p-8 font-sans relative">
+
+            {definitionWord && (
+                <DefinitionModal 
+                    word={definitionWord} 
+                    onClose={() => setDefinitionWord(null)} 
+                />
+            )}
 
             {/* --- PARENT SETTINGS MODAL --- */}
             <ParentZone
@@ -238,6 +253,8 @@ function Reader() {
                 textInput={textInput}
                 setTextInput={setTextInput}
                 handleUpload={handleUpload}
+                readerFont={readerFont}
+                setReaderFont={setReaderFont}
             />
             {/* HEADER */}
             <header className="flex justify-end items-center mb-4 md:mb-6 lg:mb-8">
@@ -271,7 +288,10 @@ function Reader() {
                             const paraContent = words.map((word, i) => {
                                 const globalIndex = wordIndex + i;
                                 return (
-                                    <span key={globalIndex} className={`px-2 py-1 rounded-lg transition-all duration-300 ease-in-out text-2xl md:text-4xl lg:text-5xl font-bold leading-relaxed font-comic ${globalIndex === currentWordIndex ? 'bg-yellow-300 text-black scale-110 transform shadow-md rotate-1' :
+                                    <span 
+                                        key={globalIndex} 
+                                        onDoubleClick={() => handleWordDoubleClick(word)}
+                                        className={`px-2 py-1 rounded-lg transition-all duration-300 ease-in-out text-2xl md:text-4xl lg:text-5xl font-bold leading-relaxed cursor-pointer ${readerFont} ${globalIndex === currentWordIndex ? 'bg-yellow-300 text-black scale-110 transform shadow-md rotate-1' :
                                         globalIndex < currentWordIndex ? 'text-blue-300' : 'text-gray-700'
                                         }`}>
                                         {word}

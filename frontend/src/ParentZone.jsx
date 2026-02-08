@@ -10,7 +10,9 @@ const ParentZone = ({
     setUploadStatus,
     textInput,
     setTextInput,
-    handleUpload
+    handleUpload,
+    readerFont,
+    setReaderFont,
 }) => {
     const handleFileChange = (event) => {
         const file = event.target.files[0];
@@ -57,6 +59,31 @@ const ParentZone = ({
                             placeholder="Paste your story text here..."
                             className="w-full h-32 p-2 border border-gray-300 rounded-lg resize-none text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                         />
+                    </div>
+
+                    {/* Font Selection Section */}
+                    <div className="p-4 border-2 border-dashed border-purple-300 rounded-xl bg-purple-50">
+                        <p className="text-sm text-gray-600 font-medium text-center mb-3">Reading Font</p>
+                        <div className="flex justify-center gap-2">
+                            <button 
+                                onClick={() => setReaderFont('font-comic')}
+                                className={`px-4 py-2 rounded-lg text-sm font-bold ${readerFont === 'font-comic' ? 'bg-purple-600 text-white' : 'bg-white hover:bg-purple-100'}`}
+                            >
+                                Comic
+                            </button>
+                            <button 
+                                onClick={() => setReaderFont('font-lexend')}
+                                className={`px-4 py-2 rounded-lg text-sm font-bold ${readerFont === 'font-lexend' ? 'bg-purple-600 text-white' : 'bg-white hover:bg-purple-100'}`}
+                            >
+                                Lexend
+                            </button>
+                            <button 
+                                onClick={() => setReaderFont('font-playfair')}
+                                className={`px-4 py-2 rounded-lg text-sm font-bold ${readerFont === 'font-playfair' ? 'bg-purple-600 text-white' : 'bg-white hover:bg-purple-100'}`}
+                            >
+                                Playfair
+                            </button>
+                        </div>
                     </div>
 
                     {uploadStatus && (
